@@ -36,8 +36,9 @@ const dataSystem = {
     },
 
     start: async () => {
+        
         try {
-            await dataSystem.page.goto("https://twitter.com/search?q=xl%20gangguan&src=typed_query&f=live");
+            await dataSystem.page.goto("https://twitter.com/search?q=YOUR_QUERY_SEARCH");
             await dataSystem.page.waitForSelector('div[data-testid="cellInnerDiv"]');
 
             let tweets = [];
@@ -49,37 +50,50 @@ const dataSystem = {
                 });
                 await sleep(3000); // Wait for some time after scrolling
             };
+            // Loop until we have 50 tweets or no new tweets are loaded
+while (tweets.length < 50) {
+    await scrollDown(); // Scroll down to load more tweets
+    await sleep(2000) // Wait for 2 seconds for new content to load
 
-            // Loop until we have 50 tweets
-            while (tweets.length < 50) {
-                await scrollDown(); // Scroll down to load more tweets
-                const newTweets = await dataSystem.page.evaluate(() => {
-                    const tweetElements = document.querySelectorAll('div[data-testid="cellInnerDiv"] div > article');
-                    const data = [];
+    const newTweets = await dataSystem.page.evaluate(() => {
+        const tweetElements = document.querySelectorAll('div[data-testid="cellInnerDiv"] div > article');
+        const data = [];
 
-                    tweetElements.forEach(tweetElement => {
-                        const accountNameElement = tweetElement.querySelector('div[data-testid="User-Name"] a').innerText;
-                        const usernameElement = tweetElement.querySelector('div[data-testid="User-Name"] div[dir="ltr"]').innerText;
-                        const tweetTextElement = tweetElement.querySelector('div[data-testid="tweetText"]').innerText;
-                        const timestampElement = tweetElement.querySelector('time');
+        tweetElements.forEach(tweetElement => {
+            const accountNameElement = tweetElement.querySelector('div[data-testid="User-Name"] a').innerText;
+            const usernameElement = tweetElement.querySelector('div[data-testid="User-Name"] div[dir="ltr"]').innerText;
+            const tweetTextElement = tweetElement.querySelector('div[data-testid="tweetText"]').innerText.split("\n").join("");
+            const timestampElement = tweetElement.querySelector('time');
 
-                        const name = accountNameElement ? accountNameElement : 'Undefined';
-                        const username = usernameElement ? usernameElement : 'Anonymous';
-                        const tweetText = tweetTextElement ? tweetTextElement : '';
-                        const timestamp = timestampElement ? timestampElement.getAttribute('datetime') : '';
+            const name = accountNameElement ? accountNameElement : 'Undefined';
+            const username = usernameElement ? usernameElement : 'Anonymous';
+            const tweetText = tweetTextElement ? tweetTextElement : '';
+            const timestamp = timestampElement ? timestampElement.getAttribute('datetime') : '';
 
-                        data.push({ name, username, tweetText, timestamp });
-                    });
+            data.push({ name, username, tweetText, timestamp });
+        });
 
-                    return data;
-                });
+        return data;
+    });
 
-                tweets = tweets.concat(newTweets); // Add newly fetched tweets to the array
-            }
+    // Filter out duplicate tweets before adding them to the array
+    newTweets.forEach(newTweet => {
+        const isDuplicate = tweets.some(existingTweet =>
+            existingTweet.name === newTweet.name &&
+            existingTweet.username === newTweet.username &&
+            existingTweet.tweetText === newTweet.tweetText &&
+            existingTweet.timestamp === newTweet.timestamp
+        );
 
-            // Slice the array to get only the first 50 tweets
-            tweets = tweets.slice(0, 50);
+        if (!isDuplicate) {
+            tweets.push(newTweet);
+        }
+    });
 
+    if (tweets.length >= 50) {
+        break; // Break the loop if we already have 50 tweets
+    }
+}
             const ws = fs.createWriteStream("./results.csv");
 
             // Write data to CSV
