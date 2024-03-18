@@ -13,10 +13,13 @@ const dataSystem = {
 
     init: async () => {
         const auth_token = process.env.AUTH_TOKEN;
+        const chrome_path = process.env.CHROME_PATH;
+        const chrome_user = process.env.CHROME_USER;
+
         try {
             dataSystem.browser = await puppeteer.launch({
-                userDataDir: "C:\\Users\\ErlangFtSiesta\\AppData\\Local\\Google\\Chrome\\User Data\\Default",
-                executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
+                userDataDir: `${chrome_user}`,
+                executablePath: `${chrome_path}`,
                 headless: false,
             });
             dataSystem.page = await dataSystem.browser.newPage();
